@@ -1,0 +1,19 @@
+{
+  "name": "pulsewatch-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PulseWatch - Smart Market Watchlist for Groww CODE 2026",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm --prefix api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build": "npm --prefix api run build && npm --prefix apps/web run build",
+    "test": "npm --prefix api test",
+    "db:setup": "npm --prefix api run db:setup",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

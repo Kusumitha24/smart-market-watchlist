@@ -1,0 +1,177 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  watchlists   Watchlist[]
+  snapshots    WatchlistSnapshot[]
+  events       ChangeEvent[]
+  interactions UserStockInteraction[]
+  notifications Notification[]
+  sessions     Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Watchlist {
+  id          String          @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  isDefault   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       WatchlistItem[]
+  snapshots   WatchlistSnapshot[]
+}
+
+model WatchlistItem {
+  id          String    @id @default(uuid())
+  watchlistId String
+  stockId     String
+  orderIndex  Int       @default(0)
+  isFavorite  Boolean   @default(false)
+  addedAt     DateTime  @default(now())
+
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  stock       Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, stockId])
+}
+
+model Stock {
+  id           String     @id @default(uuid())
+  symbol       String     @unique
+  name         String
+  sector       String
+  marketCap    Float
+  fiftyTwoHigh Float
+  fiftyTwoLow  Float
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  quotes       StockQuote[]
+  watchlistItems WatchlistItem[]
+  snapshotStocks SnapshotStock[]
+  events       ChangeEvent[]
+}
+
+model StockQuote {
+  id             String   @id @default(uuid())
+  stockId        String
+  price          Float
+  change         Float
+  changePercent  Float
+  open           Float
+  high           Float
+  low            Float
+  previousClose  Float
+  volume         BigInt
+  avgVolume      BigInt
+  volatility     Float    @default(0.0)
+  newsCount      Int      @default(0)
+  sentimentScore Float    @default(0.0)
+  source         String   @default("SIMULATOR")
+  timestamp      DateTime @default(now())
+
+  stock          Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+}
+
+model WatchlistSnapshot {
+  id          String   @id @default(uuid())
+  userId      String
+  watchlistId String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  stocks      SnapshotStock[]
+
+  @@index([watchlistId, createdAt])
+}
+
+model SnapshotStock {
+  id              String            @id @default(uuid())
+  snapshotId      String
+  stockId         String
+  symbol          String
+  price           Float
+  percentageChange Float
+  volume          BigInt
+  sentimentScore  Float
+  volatility      Float
+  newsCount       Int
+  meaningfulScore Float             @default(0)
+
+  snapshot        WatchlistSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  stock           Stock             @relation(fields: [stockId], references: [id], onDelete: Cascade)
+}
+
+model ChangeEvent {
+  id           String   @id @default(uuid())
+  userId       String
+  stockId      String
+  symbol       String
+  eventType    String   // PRICE_DROP, PRICE_SURGE, VOLUME_SPIKE, NEWS_ALERT, VOLATILITY_HIGH
+  significance Float    // 0 to 100
+  title        String
+  explanation  String   // JSON formatted array of explainability strings
+  timestamp    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock        Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+}
+
+model UserStockInteraction {
+  id           String   @id @default(uuid())
+  userId       String
+  stockId      String
+  viewsCount   Int      @default(1)
+  lastViewedAt DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MarketDataSource {
+  id          String   @id @default(uuid())
+  name        String
+  status      String   @default("ACTIVE") // ACTIVE, DEGRADED, STALE, DOWN
+  latencyMs   Int      @default(45)
+  lastUpdated DateTime @default(now())
+}
